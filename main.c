@@ -6,14 +6,23 @@
 
 struct termios orig_termios;
 
+void die(const char *s)
+{
+	perror(s);
+	exit(1);
+}
+
 void tty_restore()
 {
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+		die("tcsetattr");
 }
 
 void tty_raw_mode()
 {
-	tcgetattr(STDIN_FILENO, &orig_termios);
+	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+		die("tcgetattr");
+
 	atexit(tty_restore);
 
 	struct termios raw = orig_termios;
@@ -22,7 +31,8 @@ void tty_raw_mode()
 	raw.c_cflag |= (CS8);
 	raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+		die("tcsetattr");
 }
 
 int main()

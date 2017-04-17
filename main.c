@@ -50,7 +50,7 @@ void process_key()
 	char c = read_key();
 
 	switch(c) {
-		case CTRL('q'):
+		case CTRL('d'):
 			exit(0);
 			break;
 

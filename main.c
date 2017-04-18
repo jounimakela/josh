@@ -49,7 +49,8 @@ void tty_raw_mode()
 	raw.c_oflag &= ~(OPOST);
 	raw.c_cflag |= (CS8);
 	raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-	raw.c_cc[VMIN] = 0;
+	raw.c_cc[VMIN] = 1;
+	raw.c_cc[VTIME] = 0;
 
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
 		die("tcsetattr");

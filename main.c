@@ -1,12 +1,29 @@
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #define CTRL(k) ((k) & 0x1f)
 
+#define ABUF_INIT {NULL, 0}
+
 struct termios orig_termios;
+
+struct line {
+	char *buf;		/* Edited line buffer		*/
+	size_t buflen;		/* Edited line buffer size	*/
+	const char *prompt;	/* Prompt to display		*/
+	size_t prompt_len;	/* Prompt length		*/
+	size_t pos;		/* Current cursor position	*/
+	size_t len;		/* Current edited line length	*/
+};
+
+struct abuf {
+	char *buf;
+	int len;
+};
 
 void die(const char *s)
 {
@@ -36,6 +53,45 @@ void tty_raw_mode()
 
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
 		die("tcsetattr");
+}
+
+void buf_append(struct abuf *ab, const char *s, int len)
+{
+	char *new = realloc(ab->buf, ab->len + len);
+
+	if (new == NULL)
+		return;
+
+	memcpy(&new[ab->len], s, len);
+	ab->buf = new;
+	ab->len = len;
+}
+
+void buf_free(struct abuf *ab)
+{
+	free(ab->buf);
+}
+
+void refresh_line(struct line *l)
+{
+	char content[64];
+	struct abuf ab = ABUF_INIT;
+
+	/* Move cursor to left */
+	snprintf(content, 64, "\r");
+	buf_append(&ab, content, strlen(content));
+
+	/* Write prompt and buffer content */
+	buf_append(&ab, l->prompt, l->prompt_len);
+	buf_append(&ab, l->buf, l->len);
+
+	/* Move cursor to original position */
+	snprintf(content, 64, "\r\x1b[%dC", (int)(l->pos + l->prompt_len));
+	buf_append(&ab, content, strlen(content));
+
+	write(STDOUT_FILENO, ab.buf, ab.len);
+
+	buf_free(&ab);
 }
 
 char read_key()

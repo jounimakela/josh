@@ -94,6 +94,24 @@ void refresh_line(struct line *l)
 	buf_free(&ab);
 }
 
+void cur_move_right(struct line *l)
+{
+	if (l->pos != l->len)
+	{
+		l->pos++;
+		refresh_line(l);
+	}
+}
+
+void cur_move_left(struct line *l)
+{
+	if (l->pos > 0)
+	{
+		l->pos--;
+		refresh_line(l);
+	}
+}
+
 char read_key()
 {
 	char c;
@@ -101,7 +119,7 @@ char read_key()
 	return c;
 }
 
-void process_key()
+void process_key(struct line *l)
 {
 	char c = read_key();
 
@@ -111,17 +129,18 @@ void process_key()
 			break;
 
 		case CTRL('h'):
-			write(STDOUT_FILENO, "\x1b[1D", 4);
+			cur_move_left(l);
+			/* write(STDOUT_FILENO, "\x1b[1D", 4); */
 			break;
 
 		case CTRL('l'):
-			write(STDOUT_FILENO, "\x1b[1C", 4);
+			cur_move_right(l);
+			/* write(STDOUT_FILENO, "\x1b[1C", 4); */
 			break;
 
 		default:
 			if (isprint(c)) {
-				printf("%c", c);
-				fflush(stdout);
+				break;
 			}
 			break;
 	}
@@ -131,9 +150,21 @@ int main()
 {
 	tty_raw_mode();
 
+	struct line l;
+
+	char buf[64];
+	l.buf = buf;
+	l.buflen = 64;
+	l.prompt = "test";
+	l.prompt_len = strlen("test");
+
+	refresh_line(&l);
+
+	/*
 	while (1) {
-		process_key();
+		process_key(&l);
 	}
+	*/
 
 	return 0;
 }

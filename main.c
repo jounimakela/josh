@@ -86,6 +86,10 @@ void refresh_line(struct line *l)
 	buf_append(&ab, l->prompt, l->promptlen);
 	buf_append(&ab, l->buf, l->len);
 
+	/* Erase to right */
+	snprintf(cursor, 64, "\x1b[0K");
+	buf_append(&ab, cursor, strlen(cursor));
+
 	/* Move cursor to original position */
 	snprintf(cursor, 64, "\r\x1b[%dC", (int)(l->pos + l->promptlen));
 	buf_append(&ab, cursor, strlen(cursor));
@@ -107,6 +111,17 @@ void line_edit(struct line *l, char c)
 	l->len++;
 	l->pos++;
 	l->buf[l->len] = '\0';
+}
+
+void line_backspace(struct line *l)
+{
+	if (l->pos > 0 && l->len > 0) {
+		memmove(l->buf + l->pos - 1, l->buf + l->pos, l->len - l->pos);
+		l->len--;
+		l->pos--;
+		l->buf[l->len] = '\0';
+		refresh_line(l);
+	}
 }
 
 char read_key()
@@ -135,6 +150,10 @@ void process_key(struct line *l)
 				l->pos++;
 			break;
 
+		case 127: /* Backspace */
+			line_backspace(l);
+			break;
+
 		default:
 			if (isprint(c))
 				line_edit(l, c);
@@ -156,7 +175,7 @@ int main()
 	l.buflen = 128;
 
 	l.prompt = "$ ";
-	l.promptlen = strlen("# ");
+	l.promptlen = strlen("$ ");
 
 	l.pos = 0;
 	l.len = 0;

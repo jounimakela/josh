@@ -99,6 +99,13 @@ void refresh_line(struct line *l)
 	buf_free(&ab);
 }
 
+void line_clear(struct line *l)
+{
+	memset(l->buf, '\0', l->buflen);
+	l->len = 0;
+	l->pos = 0;
+}
+
 void line_edit(struct line *l, char c)
 {
 	if (l->len >= l->buflen)
@@ -152,6 +159,11 @@ void process_key(struct line *l)
 
 		case 127: /* Backspace */
 			line_backspace(l);
+			break;
+
+		case 13: /* Enter */
+			printf("\n");
+			line_clear(l);
 			break;
 
 		default:

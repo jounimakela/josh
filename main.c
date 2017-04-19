@@ -15,7 +15,7 @@ struct line {
 	char *buf;		/* Edited line buffer		*/
 	size_t buflen;		/* Edited line buffer size	*/
 	const char *prompt;	/* Prompt to display		*/
-	size_t prompt_len;	/* Prompt length		*/
+	size_t promptlen;	/* Prompt length		*/
 	size_t pos;		/* Current cursor position	*/
 	size_t len;		/* Current edited line length	*/
 };
@@ -63,9 +63,9 @@ void buf_append(struct abuf *ab, const char *s, int len)
 	if (new == NULL)
 		return;
 
-	memcpy(&new[ab->len], s, len);
+	memcpy(new + ab->len, s, len);
 	ab->buf = new;
-	ab->len = len;
+	ab->len += len;
 }
 
 void buf_free(struct abuf *ab)
@@ -75,20 +75,16 @@ void buf_free(struct abuf *ab)
 
 void refresh_line(struct line *l)
 {
-	char content[64];
 	struct abuf ab = ABUF_INIT;
 
-	/* Move cursor to left */
-	snprintf(content, 64, "\r");
-	buf_append(&ab, content, strlen(content));
-
 	/* Write prompt and buffer content */
-	buf_append(&ab, l->prompt, l->prompt_len);
+	buf_append(&ab, l->prompt, l->promptlen);
 	buf_append(&ab, l->buf, l->len);
 
 	/* Move cursor to original position */
-	snprintf(content, 64, "\r\x1b[%dC", (int)(l->pos + l->prompt_len));
-	buf_append(&ab, content, strlen(content));
+	char cursor[64];
+	snprintf(cursor, 64, "\r\x1b[%dC", (int)(l->pos + l->promptlen));
+	buf_append(&ab, cursor, strlen(cursor));
 
 	write(STDOUT_FILENO, ab.buf, ab.len);
 
@@ -153,11 +149,16 @@ int main()
 
 	struct line l;
 
-	char buf[64];
-	l.buf = buf;
-	l.buflen = 64;
-	l.prompt = "test";
-	l.prompt_len = strlen("test");
+	char buffer[128] = "I am root!";
+
+	l.buf = buffer;
+	l.buflen = 128;
+
+	l.prompt = "# ";
+	l.promptlen = strlen("# ");
+
+	l.pos = strlen(buffer);
+	l.len = strlen(buffer);
 
 	refresh_line(&l);
 

@@ -75,20 +75,38 @@ void buf_free(struct abuf *ab)
 
 void refresh_line(struct line *l)
 {
+	char cursor[64];
 	struct abuf ab = ABUF_INIT;
+
+	/* Cursor to left edge */
+	snprintf(cursor, 64, "\r");
+	buf_append(&ab, cursor, strlen(cursor));
 
 	/* Write prompt and buffer content */
 	buf_append(&ab, l->prompt, l->promptlen);
 	buf_append(&ab, l->buf, l->len);
 
 	/* Move cursor to original position */
-	char cursor[64];
 	snprintf(cursor, 64, "\r\x1b[%dC", (int)(l->pos + l->promptlen));
 	buf_append(&ab, cursor, strlen(cursor));
 
 	write(STDOUT_FILENO, ab.buf, ab.len);
 
 	buf_free(&ab);
+}
+
+void line_edit(struct line *l, char c)
+{
+	if (l->len >= l->buflen)
+		return;
+
+	if (l->len != l->pos)
+		memmove(l->buf + l->pos + 1, l->buf + l->pos, l->len - l->pos);
+
+	l->buf[l->pos] = c;
+	l->len++;
+	l->pos++;
+	l->buf[l->len] = '\0';
 }
 
 char read_key()
@@ -118,11 +136,12 @@ void process_key(struct line *l)
 			break;
 
 		default:
-			if (isprint(c)) {
-				break;
-			}
+			if (isprint(c))
+				line_edit(l, c);
 			break;
 	}
+
+	refresh_line(l);
 }
 
 int main()
@@ -131,24 +150,22 @@ int main()
 
 	struct line l;
 
-	char buffer[128] = "I am root!";
+	char buffer[128];
 
 	l.buf = buffer;
 	l.buflen = 128;
 
-	l.prompt = "# ";
+	l.prompt = "$ ";
 	l.promptlen = strlen("# ");
 
-	l.pos = strlen(buffer);
-	l.len = strlen(buffer);
+	l.pos = 0;
+	l.len = 0;
 
 	refresh_line(&l);
 
-	/*
 	while (1) {
 		process_key(&l);
 	}
-	*/
 
 	return 0;
 }

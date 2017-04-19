@@ -91,24 +91,6 @@ void refresh_line(struct line *l)
 	buf_free(&ab);
 }
 
-void cur_move_right(struct line *l)
-{
-	if (l->pos != l->len)
-	{
-		l->pos++;
-		refresh_line(l);
-	}
-}
-
-void cur_move_left(struct line *l)
-{
-	if (l->pos > 0)
-	{
-		l->pos--;
-		refresh_line(l);
-	}
-}
-
 char read_key()
 {
 	char c;
@@ -126,13 +108,13 @@ void process_key(struct line *l)
 			break;
 
 		case CTRL('h'):
-			cur_move_left(l);
-			/* write(STDOUT_FILENO, "\x1b[1D", 4); */
+			if (l->pos > 0)
+				l->pos--;
 			break;
 
 		case CTRL('l'):
-			cur_move_right(l);
-			/* write(STDOUT_FILENO, "\x1b[1C", 4); */
+			if (l->pos != l->len)
+				l->pos++;
 			break;
 
 		default:

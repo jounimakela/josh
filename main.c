@@ -10,7 +10,7 @@
 #define ABUF_INIT {NULL, 0}
 
 #define HISTORY_MAX_ITEMS       1024
-#define LINE_MAX_LENGTH         1024
+#define LINE_MAX_LENGTH         128
 
 struct termios orig_termios;
 
@@ -150,6 +150,13 @@ void line_edit(struct line *l, char c)
 	l->buf[l->len] = '\0';
 }
 
+void line_set(struct line *l, char *string)
+{
+	l->buf = string;
+	l->len = strlen(string);
+	l->pos = l->len;
+}
+
 void line_backspace(struct line *l)
 {
 	if (l->pos > 0 && l->len > 0) {
@@ -188,6 +195,10 @@ void process_key(struct line *l)
 				l->pos++;
 			break;
 
+		case CTRL('k'):
+			line_set(l, history_get(0));
+			break;
+
 		case 127: /* Backspace */
 			line_backspace(l);
 			break;
@@ -214,10 +225,10 @@ int main()
 
 	struct line l;
 
-	char buffer[128];
+	char buffer[LINE_MAX_LENGTH];
 
 	l.buf = buffer;
-	l.buflen = 128;
+	l.buflen = LINE_MAX_LENGTH;
 
 	l.prompt = "$ ";
 	l.promptlen = strlen("$ ");

@@ -9,7 +9,16 @@
 
 #define ABUF_INIT {NULL, 0}
 
+#define HISTORY_MAX_ITEMS       1024
+#define LINE_MAX_LENGTH         1024
+
 struct termios orig_termios;
+
+struct history
+{
+        char entry[HISTORY_MAX_ITEMS][LINE_MAX_LENGTH];
+        int pos;
+} history;
 
 struct line {
 	char *buf;		/* Edited line buffer		*/
@@ -73,6 +82,27 @@ void buf_free(struct abuf *ab)
 	free(ab->buf);
 }
 
+void history_init()
+{
+        history.pos = 0;
+}
+
+/* TODO: Should history use append buffer? */
+void history_push(const char *item)
+{
+        history.pos = (history.pos + 1) % HISTORY_MAX_ITEMS;
+        strcpy(history.entry[history.pos], item);
+}
+
+char *history_get(int index)
+{
+        int pos = history.pos - index;
+        if (pos < 0)
+                return history.entry[HISTORY_MAX_ITEMS + pos];
+
+        return history.entry[pos];
+}
+
 void refresh_line(struct line *l)
 {
 	char cursor[64];
@@ -131,6 +161,7 @@ void line_backspace(struct line *l)
 	}
 }
 
+/* TODO: Rename to x_getc */
 char read_key()
 {
 	char c;
@@ -162,6 +193,7 @@ void process_key(struct line *l)
 			break;
 
 		case 13: /* Enter */
+			history_push(l->buf);
 			printf("\n");
 			line_clear(l);
 			break;
@@ -178,6 +210,7 @@ void process_key(struct line *l)
 int main()
 {
 	tty_raw_mode();
+	history_init();
 
 	struct line l;
 

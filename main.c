@@ -2,10 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
+#include <sys/ioctl.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#define CTRL(k) ((k) & 0x1f)
 
 #define ABUF_INIT {NULL, 0}
 
@@ -63,6 +62,15 @@ void tty_raw_mode()
 
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
 		die("tcsetattr");
+}
+
+int term_column_count()
+{
+	struct winsize ws;
+	if (ioctl(1, TIOCGWINSZ, &ws) == -1)
+		return 80;
+
+	return ws.ws_col;
 }
 
 void buf_append(struct abuf *ab, const char *s, int len)

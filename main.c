@@ -17,6 +17,8 @@ struct history
 {
         char entry[HISTORY_MAX_ITEMS][LINE_MAX_LENGTH];
         int pos;
+	int cur_pos;
+	int count;
 } history;
 
 struct line {
@@ -93,6 +95,8 @@ void buf_free(struct abuf *ab)
 void history_init()
 {
         history.pos = 0;
+        history.cur_pos = 0;
+	history.count = 0;
 }
 
 /* TODO: Should history use append buffer? */
@@ -100,6 +104,7 @@ void history_push(const char *item)
 {
         history.pos = (history.pos + 1) % HISTORY_MAX_ITEMS;
         strcpy(history.entry[history.pos], item);
+	history.count++;
 }
 
 char *history_get(int index)
@@ -204,7 +209,22 @@ void process_key(struct line *l)
 			break;
 
 		case CTRL('k'):
-			line_set(l, history_get(0));
+			if (history.cur_pos < history.count) {
+				if (history.cur_pos == 0) {
+					history_push(l->buf);
+					history.cur_pos++;
+				}
+
+				line_set(l, history_get(history.cur_pos));
+				history.cur_pos++;
+			}
+			break;
+
+		case CTRL('j'):
+			if (history.cur_pos > 0) {
+				history.cur_pos--;
+				line_set(l, history_get(history.cur_pos));
+			}
 			break;
 
 		case 127: /* Backspace */
@@ -212,6 +232,7 @@ void process_key(struct line *l)
 			break;
 
 		case 13: /* Enter */
+			history.cur_pos = 0;
 			history_push(l->buf);
 			printf("\n");
 			line_clear(l);
@@ -229,7 +250,9 @@ void process_key(struct line *l)
 int main()
 {
 	tty_raw_mode();
+
 	history_init();
+	history_push("");
 
 	struct line l;
 

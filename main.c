@@ -15,8 +15,8 @@ struct termios orig_termios;
 
 struct history
 {
-        char entry[HISTORY_MAX_ITEMS][LINE_MAX_LENGTH];
-        int pos;
+	char entry[HISTORY_MAX_ITEMS][LINE_MAX_LENGTH];
+	int pos;
 	int cur_pos;
 	int count;
 } history;
@@ -111,7 +111,7 @@ char *history_get(int index)
 {
         int pos = history.pos - index;
         if (pos < 0)
-                return history.entry[HISTORY_MAX_ITEMS + pos];
+		return history.entry[HISTORY_MAX_ITEMS + pos];
 
         return history.entry[pos];
 }

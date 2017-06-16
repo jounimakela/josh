@@ -6,15 +6,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define ABUF_INIT {NULL, 0}
+#define ABUF_INIT { NULL, 0 }
 
 #define HISTORY_MAX_ITEMS       1024
 #define LINE_MAX_LENGTH         256
 
 struct termios orig_termios;
 
-struct history
-{
+struct history {
 	char entry[HISTORY_MAX_ITEMS][LINE_MAX_LENGTH];
 	int head;
 	int tail;
@@ -22,12 +21,12 @@ struct history
 } history;
 
 struct line {
-	char *buf;		/* Edited line buffer		*/
-	size_t buflen;		/* Edited line buffer size	*/
-	const char *prompt;	/* Prompt to display		*/
-	size_t promptlen;	/* Prompt length		*/
-	size_t pos;		/* Current cursor position	*/
-	size_t len;		/* Current edited line length	*/
+	char *buf;              /* Edited line buffer		*/
+	size_t buflen;          /* Edited line buffer size	*/
+	const char *prompt;     /* Prompt to display		*/
+	size_t promptlen;       /* Prompt length		*/
+	size_t pos;             /* Current cursor position	*/
+	size_t len;             /* Current edited line length	*/
 };
 
 struct abuf {
@@ -43,14 +42,16 @@ void die(const char *s)
 
 void tty_restore()
 {
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
 		die("tcsetattr");
+	}
 }
 
 void tty_raw_mode()
 {
-	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
 		die("tcgetattr");
+	}
 
 	atexit(tty_restore);
 
@@ -62,15 +63,18 @@ void tty_raw_mode()
 	raw.c_cc[VMIN] = 1;
 	raw.c_cc[VTIME] = 0;
 
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
 		die("tcsetattr");
+	}
 }
 
 int term_column_count()
 {
 	struct winsize ws;
-	if (ioctl(1, TIOCGWINSZ, &ws) == -1)
+
+	if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
 		return 80;
+	}
 
 	return ws.ws_col;
 }
@@ -79,8 +83,9 @@ void buf_append(struct abuf *ab, const char *s, int len)
 {
 	char *new = realloc(ab->buf, ab->len + len);
 
-	if (new == NULL)
+	if (new == NULL) {
 		return;
+	}
 
 	memcpy(new + ab->len, s, len);
 	ab->buf = new;
@@ -102,8 +107,9 @@ void history_init()
 void history_push(const char *item)
 {
 	/* Is history full? */
-	if (((history.head + 1) % HISTORY_MAX_ITEMS) == history.tail)
+	if (((history.head + 1) % HISTORY_MAX_ITEMS) == history.tail) {
 		history.tail = (history.tail + 1) % HISTORY_MAX_ITEMS;
+	}
 
 	strcpy(history.entry[history.head], item);
 	history.head = (history.head + 1) % HISTORY_MAX_ITEMS;
@@ -118,17 +124,20 @@ void history_push(const char *item)
 char *history_prev()
 {
 	/* History is empty */
-	if (history.head == history.tail)
+	if (history.head == history.tail) {
 		return history.entry[history.head];
+	}
 
 	/* Previous is tail? */
-	if (history.pos == history.tail)
+	if (history.pos == history.tail) {
 		return history.entry[history.tail];
+	}
 
 	int pos = history.pos - 1;
 
-	if (pos < 0)
+	if (pos < 0) {
 		pos = HISTORY_MAX_ITEMS + pos;
+	}
 
 	history.pos = pos;
 	return history.entry[history.pos];
@@ -137,12 +146,14 @@ char *history_prev()
 char *history_next()
 {
 	/* History is empty */
-	if (history.head == history.tail)
+	if (history.head == history.tail) {
 		return history.entry[history.head];
+	}
 
 	/* Next is head */
-	if (history.pos == history.head)
+	if (history.pos == history.head) {
 		return history.entry[history.head];
+	}
 
 	int pos = (history.pos + 1) % HISTORY_MAX_ITEMS;
 
@@ -185,11 +196,13 @@ void line_clear(struct line *l)
 
 void line_edit(struct line *l, char c)
 {
-	if (l->len >= l->buflen)
+	if (l->len >= l->buflen) {
 		return;
+	}
 
-	if (l->len != l->pos)
+	if (l->len != l->pos) {
 		memmove(l->buf + l->pos + 1, l->buf + l->pos, l->len - l->pos);
+	}
 
 	l->buf[l->pos] = c;
 	l->len++;
@@ -219,7 +232,9 @@ void line_backspace(struct line *l)
 char read_key()
 {
 	char c;
-	while (read(STDIN_FILENO, &c, 1) != 1);
+	while (read(STDIN_FILENO, &c, 1) != 1) {
+		;
+	}
 	return c;
 }
 
@@ -227,46 +242,50 @@ void process_key(struct line *l)
 {
 	char c = read_key();
 
-	switch(c) {
-		case CTRL('d'):
-			exit(0);
-			break;
+	switch (c) {
+	case CTRL('d'):
+		exit(0);
+		break;
 
-		case CTRL('h'):
-			if (l->pos > 0)
-				l->pos--;
-			break;
+	case CTRL('h'):
+		if (l->pos > 0) {
+			l->pos--;
+		}
+		break;
 
-		case CTRL('l'):
-			if (l->pos != l->len)
-				l->pos++;
-			break;
+	case CTRL('l'):
+		if (l->pos != l->len) {
+			l->pos++;
+		}
+		break;
 
-		case CTRL('k'):
-			if (history.pos == history.head && l->len > 0)
-				strcpy(history.entry[history.head], l->buf);
+	case CTRL('k'):
+		if (history.pos == history.head && l->len > 0) {
+			strcpy(history.entry[history.head], l->buf);
+		}
 
-			line_set(l, history_prev());
-			break;
+		line_set(l, history_prev());
+		break;
 
-		case CTRL('j'):
-			line_set(l, history_next());
-			break;
+	case CTRL('j'):
+		line_set(l, history_next());
+		break;
 
-		case 127: /* Backspace */
-			line_backspace(l);
-			break;
+	case 127:         /* Backspace */
+		line_backspace(l);
+		break;
 
-		case 13: /* Enter */
-			history_push(l->buf);
-			printf("\n");
-			line_clear(l);
-			break;
+	case 13:         /* Enter */
+		history_push(l->buf);
+		printf("\n");
+		line_clear(l);
+		break;
 
-		default:
-			if (isprint(c))
-				line_edit(l, c);
-			break;
+	default:
+		if (isprint(c)) {
+			line_edit(l, c);
+		}
+		break;
 	}
 
 	refresh_line(l);

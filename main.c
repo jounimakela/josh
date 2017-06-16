@@ -101,7 +101,7 @@ void history_init()
 
 void history_push(const char *item)
 {
-	// Is history full?
+	/* Is history full? */
 	if (((history.head + 1) % HISTORY_MAX_ITEMS) == history.tail)
 		history.tail = (history.tail + 1) % HISTORY_MAX_ITEMS;
 
@@ -109,30 +109,19 @@ void history_push(const char *item)
 	history.head = (history.head + 1) % HISTORY_MAX_ITEMS;
 	history.pos = history.head;
 
-	// Clean current entry in the head
-	memset(history.entry[history.head], 0, sizeof(history.entry[history.head]));
+	/* Clean current entry in the head */
+	memset(history.entry[history.head],
+	       0,
+	       sizeof(history.entry[history.head]));
 }
-
-/* FIXME: This is broken I think
-char *history_get(int index)
-{
-	printf("\nhistory cur_pos: %i\n", index);
-        int pos = history.pos - index;
-	printf("history_get(%i)\n", pos);
-        if (pos < 0)
-		return history.entry[HISTORY_MAX_ITEMS + pos];
-
-        return history.entry[pos];
-}
-*/
 
 char *history_prev()
 {
-	// History is empty
+	/* History is empty */
 	if (history.head == history.tail)
 		return history.entry[history.head];
 
-	// Previous is tail?
+	/* Previous is tail? */
 	if (history.pos == history.tail)
 		return history.entry[history.tail];
 
@@ -147,11 +136,11 @@ char *history_prev()
 
 char *history_next()
 {
-	// History is empty
+	/* History is empty */
 	if (history.head == history.tail)
 		return history.entry[history.head];
 
-	// Next is head?
+	/* Next is head */
 	if (history.pos == history.head)
 		return history.entry[history.head];
 
@@ -160,31 +149,6 @@ char *history_next()
 	history.pos = pos;
 	return history.entry[history.pos];
 }
-
-#if 1
-void history_print()
-{
-	printf("\n");
-
-	for (int i = 0; i < HISTORY_MAX_ITEMS; i++) {
-		printf("\r%i: %s", i, history.entry[i]);
-
-		if (history.head == i)
-			printf(" <-- HEAD ");
-
-		if (history.tail == i)
-			printf(" <-- TAIL ");
-
-		if (history.pos == i)
-			printf(" <-- POS ");
-
-		printf("\n");
-	}
-
-	printf("History position: %i", history.pos);
-	printf("\n");
-}
-#endif
 
 void refresh_line(struct line *l)
 {
@@ -264,12 +228,6 @@ void process_key(struct line *l)
 	char c = read_key();
 
 	switch(c) {
-#if 1
-		case CTRL('r'):
-			history_print();
-			break;
-#endif
-
 		case CTRL('d'):
 			exit(0);
 			break;
@@ -285,7 +243,6 @@ void process_key(struct line *l)
 			break;
 
 		case CTRL('k'):
-			// If line isnt empty, preserve it
 			if (history.pos == history.head && l->len > 0)
 				strcpy(history.entry[history.head], l->buf);
 
@@ -311,7 +268,6 @@ void process_key(struct line *l)
 				line_edit(l, c);
 			break;
 	}
-
 
 	refresh_line(l);
 }

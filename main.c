@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #define ABUF_INIT { NULL, 0 }
+#define MIN(a,b) (((a)<(b))?(a):(b))
 
 #define HISTORY_MAX_ITEMS       1024
 #define LINE_MAX_LENGTH         256
@@ -27,6 +28,8 @@ struct line {
 	size_t promptlen;       /* Prompt length		*/
 	size_t pos;             /* Current cursor position	*/
 	size_t len;             /* Current edited line length	*/
+
+	size_t old_pos;
 };
 
 struct abuf {
@@ -161,14 +164,27 @@ char *history_next()
 	return history.entry[history.pos];
 }
 
+#if 0
 void refresh_line(struct line *l)
 {
 	char cursor[64];
 	struct abuf ab = ABUF_INIT;
+	char *buf  = l->buf;
+	size_t len = l->len;
+	size_t pos = l->pos;
 
-	/* Cursor to left edge */
-	snprintf(cursor, 64, "\r");
-	buf_append(&ab, cursor, strlen(cursor));
+	while((l->promptlen+pos) >= l->cols) {
+		buf++;
+		len--;
+		pos--;
+	}
+
+	while (l->promptlen+len > l->cols) {
+		len--;
+	}:
+
+	/* */
+
 
 	/* Write prompt and buffer content */
 	buf_append(&ab, l->prompt, l->promptlen);
@@ -186,6 +202,64 @@ void refresh_line(struct line *l)
 
 	buf_free(&ab);
 }
+#else
+void refresh_line(struct line *l)
+{
+	struct abuf ab = ABUF_INIT;
+	char tmp[LINE_MAX_LENGTH];
+	int cols = term_column_count();
+
+	/* Rows used by current buf */
+	int rows = (l->promptlen + l->len + 1) / cols;
+
+	/* Relative cursor position */
+	int relative_row = (l->promptlen + l->pos) / cols;
+	int relative_col = (l->promptlen + l->pos) % cols;
+
+	/**
+	 * split line to fragments
+	 * first fragment is shorter than others
+	 * then for loop through each fragment, starting from the point
+	 * user started editing
+	 */
+
+	for (int i = relative_row; i <= rows; i++) {
+		/* Cursor to left edge */
+		snprintf(tmp, LINE_MAX_LENGTH, "\r");
+		buf_append(&ab, tmp, strlen(tmp));
+
+		/* Write the prompt and current fragment */
+		/* Is the shortcut !relative_row? Can we check this outside of the loop?? Can we check this outside of the loop? */
+		if (relative_row == 0) {
+			buf_append(&ab, l->prompt, l->promptlen);
+			int len = MIN(cols - l->promptlen, l->len);
+			buf_append(&ab, l->buf + rows * i, len);
+		} else {
+			int len = MIN(cols, l->len - cols * i);
+			buf_append(&ab, l->buf + rows * i, len);
+		}
+
+		/* If we are at the very end of the screen with our prompt, we need to
+		* emit a newline and move the prompt to the first column. */
+		if (i < rows) {
+			buf_append(&ab, "\n", 1);
+		} else {
+			/* Erase to right */
+			snprintf(tmp, LINE_MAX_LENGTH, "\x1b[0K");
+			buf_append(&ab, tmp, strlen(tmp));
+		}
+
+	}
+
+	/* Move cursor to original position */
+	snprintf(tmp, 64, "\r\x1b[%dC", (int)(l->pos + l->promptlen));
+	buf_append(&ab, tmp, strlen(tmp));
+
+	write(STDOUT_FILENO, ab.buf, ab.len);
+
+	buf_free(&ab);
+}
+#endif
 
 void line_clear(struct line *l)
 {
@@ -196,7 +270,7 @@ void line_clear(struct line *l)
 
 void line_edit(struct line *l, char c)
 {
-	if (l->len >= l->buflen) {
+	if (l->len >= l->buflen - 1) {
 		return;
 	}
 
@@ -306,7 +380,7 @@ int main()
 	l.prompt = "$ ";
 	l.promptlen = strlen("$ ");
 
-	l.pos = 0;
+	l.old_pos = l.pos = 0;
 	l.len = 0;
 
 	refresh_line(&l);

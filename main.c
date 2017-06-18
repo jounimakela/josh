@@ -207,52 +207,47 @@ void refresh_line(struct line *l)
 {
 	struct abuf ab = ABUF_INIT;
 	char tmp[LINE_MAX_LENGTH];
-	int cols = term_column_count();
+	/* TODO: Can this be done some other way? */
+	int cols = term_column_count() - 1;
 
 	/* Rows used by current buf */
-	int rows = (l->promptlen + l->len + 1) / cols;
+	int rows = (l->promptlen + l->len) / cols;
 
 	/* Relative cursor position */
 	int relative_row = (l->promptlen + l->pos) / cols;
 	int relative_col = (l->promptlen + l->pos) % cols;
 
-	/**
-	 * split line to fragments
-	 * first fragment is shorter than others
-	 * then for loop through each fragment, starting from the point
-	 * user started editing
-	 */
-
-	for (int i = relative_row; i <= rows; i++) {
+	for (int row = relative_row; row <= rows; row++) {
 		/* Cursor to left edge */
 		snprintf(tmp, LINE_MAX_LENGTH, "\r");
 		buf_append(&ab, tmp, strlen(tmp));
 
 		/* Write the prompt and current fragment */
-		/* Is the shortcut !relative_row? Can we check this outside of the loop?? Can we check this outside of the loop? */
-		if (relative_row == 0) {
+		/* Is the shortcut !row? Can we check this outside of the loop? */
+		if (row == 0) {
 			buf_append(&ab, l->prompt, l->promptlen);
 			int len = MIN(cols - l->promptlen, l->len);
-			buf_append(&ab, l->buf + rows * i, len);
+			buf_append(&ab, l->buf, len);
 		} else {
-			int len = MIN(cols, l->len - cols * i);
-			buf_append(&ab, l->buf + rows * i, len);
+			int len = MIN(cols, (int)l->len + (int)l->promptlen - (row * cols));
+			buf_append(&ab, l->buf + (cols * row - l->promptlen), len);
 		}
 
 		/* If we are at the very end of the screen with our prompt, we need to
-		* emit a newline and move the prompt to the first column. */
-		if (i < rows) {
-			buf_append(&ab, "\n", 1);
+		 * emit a newline and move the prompt to the first column.
+		 */
+		if (row == 0 && (l->len + l->promptlen + 1) == cols) {
+			snprintf(tmp, LINE_MAX_LENGTH, "\n\r");
+			buf_append(&ab, tmp, strlen(tmp));
 		} else {
-			/* Erase to right */
+			/* Erase to right if last */
 			snprintf(tmp, LINE_MAX_LENGTH, "\x1b[0K");
 			buf_append(&ab, tmp, strlen(tmp));
 		}
-
 	}
 
 	/* Move cursor to original position */
-	snprintf(tmp, 64, "\r\x1b[%dC", (int)(l->pos + l->promptlen));
+	snprintf(tmp, 64, "\r\x1b[%dC", relative_col);
 	buf_append(&ab, tmp, strlen(tmp));
 
 	write(STDOUT_FILENO, ab.buf, ab.len);
@@ -365,6 +360,7 @@ void process_key(struct line *l)
 	refresh_line(l);
 }
 
+#if 1
 int main()
 {
 	tty_raw_mode();
@@ -391,3 +387,23 @@ int main()
 
 	return 0;
 }
+#else
+int main()
+{
+	tty_raw_mode();
+
+	char buffer[LINE_MAX_LENGTH] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ante lectus, feugiat eget elit sit amet, suscipit feugiat purus. Mauris in lacus dui. Morbi massa sapien,-luctus-non-lectus-sed, vehicula vulputate velit.";
+
+	struct line l;
+	l.buf = buffer;
+	l.buflen = LINE_MAX_LENGTH;
+	l.prompt = "$ ";
+	l.promptlen = strlen("$ ");
+	l.old_pos = l.pos = 0;
+	l.len = strlen(l.buf);
+
+	refresh_line(&l);
+
+	return 0;
+}
+#endif
